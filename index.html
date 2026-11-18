@@ -554,6 +554,23 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
 .bscard.full svg{max-height:80vh;width:11cm}
 body.bsopen{overflow:hidden}
 :root[data-light="night"] .bscard{background:#fff}
+
+.mscope{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:22px;align-items:start}
+.mview{position:relative;aspect-ratio:1;border-radius:50%;overflow:hidden;background:#000;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;
+  box-shadow:0 0 0 10px #15151c,0 0 0 12px #2b2b36,0 24px 50px -20px rgba(0,0,0,.7)}
+.mview:active{cursor:grabbing}
+.mview canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+#mTag{pointer-events:none}
+.mring{position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,transparent 58%,rgba(0,0,0,.25) 72%,rgba(0,0,0,.85) 100%);box-shadow:inset 0 0 40px 10px rgba(0,0,0,.6)}
+.mmag{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;font-weight:700;font-size:13px;padding:4px 10px;border-radius:999px;pointer-events:none}
+.mside{display:grid;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px}
+.mside .lbl{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;display:block}
+.mzoom{display:grid;grid-template-columns:40px minmax(0,1fr) 40px;gap:8px;align-items:center}
+.mzoom .sbtn{justify-content:center;padding:0;font-size:20px}
+.mside input[type=range]{width:100%;accent-color:var(--accent)}
+.mfocus{display:grid}
+@media (max-width:860px){ .mscope{grid-template-columns:1fr} .mview{max-width:440px;width:100%;margin:12px auto} }
 </style>
 </head>
 <body>
@@ -2625,7 +2642,7 @@ const LABS = [
     aim:['Түрлі ағзалар қанының формалы элементтерінің құрылыс ерекшеліктерін зерттеу.','Адам эритроцитінің құрылысы мен қызметінің байланысын түсіндіру.'],
     theory:`<p>Қанның формалы элементтеріне <b>эритроциттер</b>, <b>лейкоциттер</b> және <b>тромбоциттер</b> жатады. Адамның жетілген эритроциті — екі жағы ойыс, ядросыз диск: бұл пішін беттің ауданын арттырып, гемоглобинге көп орын береді.</p>
       <p>Балықтардың, қосмекенділердің, бауырымен жорғалаушылар мен құстардың эритроциттері сопақша және <b>ядролы</b>. Сүтқоректілердің эритроциттері ядросыз; түйе мен лама — ерекше жағдай: олардың эритроциттері сопақ, бірақ ядросыз.</p>`,
-    tools:['Микроскоп','Адам, бақа, құс, түйе (лама) қанының дайын микропрепараттары немесе олардың суреттері'],
+    tools:['Микроскоп','Адам, бақа, құс, түйе (лама) қанының дайын микропрепараттары','Сайттағы виртуал микроскоп (төменде) — препараттар болмаған жағдайда'], card:'micro',
     steps:['Микроскопты кіші үлкейтуге қойып, адам қанының препаратын табыңыз; содан кейін үлкен үлкейтуге ауысыңыз.','Эритроциттерді, лейкоциттерді, тромбоциттерді табыңыз. Қай жасушалар ең көп?','Бақа, құс, түйе қанының препараттарын қарап, эритроциттердің пішіні мен ядросына назар аударыңыз.','Төмендегі кестелерді толтырып, «Тексеру» батырмасын басыңыз.'],
     calc:'check', check:[
       { title:'Эритроциттерді салыстыру', cols:[ {h:'Пішіні', o:['Дөңгелек, екі жағы ойыс','Сопақша']}, {h:'Ядросы', o:['Бар','Жоқ']} ],
@@ -2711,6 +2728,7 @@ function renderLab(n){
     <section class="dsec" id="x-th"><h2><span class="n">02</span>Теориялық түсінік</h2>${l.theory}</section>
     <section class="dsec" id="x-tools"><h2><span class="n">03</span>Құрал-жабдықтар</h2><ul>${l.tools.map(a=>`<li>${a}</li>`).join('')}</ul></section>
     <section class="dsec" id="x-steps"><h2><span class="n">04</span>Жұмыс барысы</h2><ol class="steps">${l.steps.map(a=>`<li><span>${a}</span></li>`).join('')}</ol></section>
+    ${l.card==='micro'?`<section class="dsec" id="x-micro"><h2><span class="n">★</span>Виртуал микроскоп</h2><div id="microHost"></div></section>`:''}
     ${l.card==='blind'?`<section class="dsec" id="x-card"><h2><span class="n">★</span>Тест картасы</h2>
       <div class="bsbar"><div class="seg2"><button data-bseye="R" aria-pressed="true">Оң көз</button><button data-bseye="L" aria-pressed="false">Сол көз</button></div>
         <button class="sbtn primary" data-bsfull><svg class="ic"><use href="#i-expand"/></svg>Толық экран</button></div>
@@ -2731,6 +2749,7 @@ function renderLab(n){
     </nav>`;
   host.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.jump).scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'}));
   if(l.card==='blind') blindCard(host);
+  if(l.card==='micro') microscope($('#microHost'));
   CALC[l.calc](l, $('#labWork'));
 }
 
@@ -2750,6 +2769,145 @@ function blindCard(host){
   document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement && card.classList.contains('full')) { card.classList.remove('full'); document.body.classList.remove('bsopen'); } });
   set('R');
 }
+/* ---------- Виртуал микроскоп: қан жағындысы ---------- */
+function microscope(host){
+  const SPEC = {
+    human:{ kz:'Адам қаны', note:'Эритроциттер дөңгелек, екі жағы ойыс (ортасы ақшыл), ядросыз. Арасында ядролы лейкоциттер мен ұсақ тромбоциттер бар.' },
+    frog: { kz:'Бақа қаны', note:'Эритроциттер ірі, сопақша және ядролы. Тромбоциттер де ядролы ұсақ жасушалар.' },
+    bird: { kz:'Құс қаны',  note:'Эритроциттер сопақша, ядролы, адамдікінен ірірек. Тромбоциттер ядролы.' },
+    camel:{ kz:'Түйе қаны', note:'Эритроциттер ұсақ, сопақша, бірақ ядросыз — сүтқоректілерге тән белгі.' },
+  };
+  const OBJ = [4,10,40,100], EYE = 10, WORLD = 560;
+  let spec='human', fov=180, cx=WORLD/2, cy=WORLD/2, focus=38, focusT=50, labels=false, cells=null, dirty=false;
+  host.innerHTML = `
+    <div class="mscope">
+      <div class="mview" id="mView"><canvas id="mCan"></canvas><canvas id="mTag"></canvas><div class="mring"></div><div class="mmag" id="mMag"></div></div>
+      <div class="mside">
+        <div><div class="lbl">Препарат</div><div class="chips" id="mSpec">${Object.entries(SPEC).map(([k,v])=>`<button data-sp="${k}">${v.kz}</button>`).join('')}</div></div>
+        <div><div class="lbl">Объектив</div><div class="chips" id="mObj">${OBJ.map(o=>`<button data-ob="${o}">×${o}</button>`).join('')}</div></div>
+        <div class="mzoom"><button class="sbtn" id="mOut" aria-label="Кішірейту">−</button><input type="range" id="mZoom" min="0" max="1000" aria-label="Үлкейту"><button class="sbtn" id="mIn" aria-label="Үлкейту">+</button></div>
+        <label class="mfocus"><span class="lbl">Фокус (микрометрлік бұранда)</span><input type="range" id="mFocus" min="0" max="100" value="38"></label>
+        <label class="toggle"><input type="checkbox" id="mLab"> Жасушаларды белгілеу</label>
+        <p class="small" id="mNote"></p>
+        <p class="small">Препаратты жылжыту үшін суретті сүйреңіз; үлкейту үшін тінтуір дөңгелегін немесе екі саусақты қолданыңыз. Объективті ауыстырған сайын фокусты қайта реттеңіз.</p>
+      </div>
+    </div>`;
+  const view=host.querySelector('#mView'), can=host.querySelector('#mCan'), ctx=can.getContext('2d'), tcan=host.querySelector('#mTag'), tctx=tcan.getContext('2d');
+  const zr=host.querySelector('#mZoom'), fr=host.querySelector('#mFocus');
+  const FMIN=14, FMAX=470;
+  const fovToR=f=>Math.round(1000*Math.log(FMAX/f)/Math.log(FMAX/FMIN)), rToFov=r=>FMAX*Math.pow(FMIN/FMAX, r/1000);
+
+  // --- жасушаларды генерациялау (seed) ---
+  function rng(seed){ let s=seed>>>0; return ()=>{ s=(s+0x6D2B79F5)>>>0; let t=s; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; }
+  function gen(sp){
+    const R=rng({human:11,frog:22,bird:33,camel:44}[sp]); const out=[]; const G=new Map(), cs=12;
+    const key=(x,y)=>((x/cs)|0)+','+((y/cs)|0);
+    const fits=(x,y,r,ov)=>{ const gx=(x/cs)|0, gy=(y/cs)|0; for(let i=-3;i<=3;i++) for(let j=-3;j<=3;j++){ const L=G.get((gx+i)+','+(gy+j)); if(!L) continue; for(const c of L){ const d=Math.hypot(c.x-x,c.y-y); if(d < (c.r+r)*ov) return false; } } return true; };
+    const add=c=>{ out.push(c); const k=key(c.x,c.y); (G.get(k)||G.set(k,[]).get(k)).push(c); };
+    const shape={ human:{a:3.8,b:3.8,nuc:false}, frog:{a:11,b:7.2,nuc:true}, bird:{a:6.2,b:3.6,nuc:true}, camel:{a:4.1,b:2.3,nuc:false} }[sp];
+    // лейкоциттер
+    const wbcN = 40, types=['neut','neut','neut','lymph','lymph','mono','eos'];
+    for(let i=0;i<wbcN;i++){ const t=types[(R()*types.length)|0]; const r={neut:6,lymph:4.3,mono:8,eos:6.2}[t]*(sp==='frog'?1.3:1); const x=20+R()*(WORLD-40), y=20+R()*(WORLD-40); add({t, x,y, r, a:r,b:r, rot:R()*6.28, s:R()}); }
+    // тромбоциттер
+    const pN = sp==='human'||sp==='camel' ? 260 : 120;
+    for(let i=0;i<pN;i++){ const x=R()*WORLD, y=R()*WORLD; if(sp==='human'||sp==='camel') add({t:'plt',x,y,r:1.1+R()*0.6,a:1.2,b:1,rot:R()*6.28,s:R()}); else add({t:'thr',x,y,r:3.2,a:3.6,b:2.2,rot:R()*6.28,s:R()}); }
+    // эритроциттер
+    const target={human:5200,frog:620,bird:2600,camel:5600}[sp]; let tries=0;
+    while(out.length<target+wbcN+pN && tries<target*20){ tries++;
+      const x=R()*WORLD, y=R()*WORLD, sc=0.88+R()*0.24, a=shape.a*sc, b=shape.b*sc, r=(a+b)/2;
+      if(fits(x,y,r, sp==='human'?0.86:0.93)) add({t:'rbc',x,y,r,a,b,rot:R()*6.28,s:R(),nuc:shape.nuc}); }
+    return out;
+  }
+  // --- салу ---
+  function draw(){
+    dirty=false;
+    const dpr=Math.min(devicePixelRatio||1,2), S=view.clientWidth; if(!S) return;
+    if(can.width!==Math.round(S*dpr)){ can.width=can.height=Math.round(S*dpr); }
+    can.style.width=can.style.height=S+'px';
+    if(tcan.width!==can.width){ tcan.width=tcan.height=can.width; }
+    ctx.setTransform(dpr,0,0,dpr,0,0); tctx.setTransform(dpr,0,0,dpr,0,0); tctx.clearRect(0,0,S,S);
+    const k=S/fov; // px / мкм
+    // фон (плазма)
+    ctx.fillStyle='#f4e4e6'; ctx.fillRect(0,0,S,S);
+    const x0=cx-fov/2, y0=cy-fov/2;
+    const tx=x=>(x-x0)*k, ty=y=>(y-y0)*k;
+    const vis=c=>c.x+c.r>x0 && c.x-c.r<x0+fov && c.y+c.r>y0 && c.y-c.r<y0+fov;
+    const lw=Math.max(0.6, k*0.35);
+    // эритроциттер алдымен
+    for(const c of cells){ if(c.t!=='rbc' || !vis(c)) continue;
+      ctx.save(); ctx.translate(tx(c.x),ty(c.y)); ctx.rotate(c.rot);
+      const A=c.a*k, B=c.b*k;
+      if(spec==='human'){
+        ctx.beginPath(); ctx.ellipse(0,0,A,B,0,0,6.283); ctx.fillStyle='#d9737c'; ctx.fill();
+        if(A>2){ ctx.beginPath(); ctx.ellipse(A*0.04,-B*0.04,A*0.48,B*0.48,0,0,6.283); ctx.fillStyle='rgba(248,214,214,.85)'; ctx.fill();
+          ctx.lineWidth=lw; ctx.strokeStyle='rgba(160,60,72,.55)'; ctx.beginPath(); ctx.ellipse(0,0,A,B,0,0,6.283); ctx.stroke(); }
+      } else {
+        ctx.beginPath(); ctx.ellipse(0,0,A,B,0,0,6.283); ctx.fillStyle= spec==='camel' ? '#d77b7f' : '#e3a08f'; ctx.fill();
+        if(A>2){ ctx.lineWidth=lw; ctx.strokeStyle='rgba(150,70,70,.5)'; ctx.stroke(); }
+        if(c.nuc){ ctx.beginPath(); ctx.ellipse((c.s-.5)*A*0.12,0,A*0.36,B*0.42,0,0,6.283); ctx.fillStyle='#5a3a86'; ctx.fill(); }
+      }
+      ctx.restore();
+    }
+    // лейкоциттер, тромбоциттер
+    for(const c of cells){ if(c.t==='rbc' || !vis(c)) continue;
+      ctx.save(); ctx.translate(tx(c.x),ty(c.y)); ctx.rotate(c.rot); const R=c.r*k;
+      if(c.t==='plt'){ ctx.fillStyle='#7d5aa6'; ctx.beginPath(); ctx.ellipse(0,0,c.a*k,c.b*k,0,0,6.283); ctx.fill(); if(R>3){ ctx.fillStyle='#5b3c8a'; ctx.beginPath(); ctx.arc(R*.2,0,R*.35,0,6.283); ctx.fill(); } }
+      else if(c.t==='thr'){ ctx.fillStyle='#e9dff0'; ctx.beginPath(); ctx.ellipse(0,0,c.a*k,c.b*k,0,0,6.283); ctx.fill(); ctx.fillStyle='#4b2f78'; ctx.beginPath(); ctx.ellipse(0,0,c.a*k*.62,c.b*k*.66,0,0,6.283); ctx.fill(); }
+      else {
+        const cyto={neut:'#eadcef',lymph:'#b9c6ea',mono:'#d6d0e8',eos:'#f2b98f'}[c.t];
+        ctx.beginPath(); ctx.arc(0,0,R,0,6.283); ctx.fillStyle=cyto; ctx.fill();
+        if(c.t==='eos' && R>6){ ctx.fillStyle='#e07a4a'; for(let i=0;i<40;i++){ const an=i*2.4, rr=R*0.85*Math.sqrt((i+.5)/40); ctx.beginPath(); ctx.arc(Math.cos(an)*rr,Math.sin(an)*rr,Math.max(.6,R*.06),0,6.283); ctx.fill(); } }
+        ctx.fillStyle='#4a2a7c';
+        if(c.t==='lymph'){ ctx.beginPath(); ctx.arc(R*.06,0,R*.8,0,6.283); ctx.fill(); }
+        else if(c.t==='mono'){ ctx.beginPath(); ctx.ellipse(R*.1,0,R*.55,R*.42,0,0,6.283); ctx.fill(); ctx.fillStyle=cyto; ctx.beginPath(); ctx.arc(R*.45,0,R*.22,0,6.283); ctx.fill(); }
+        else { const n = c.t==='eos' ? 2 : 3 + (c.s>.6?1:0); for(let i=0;i<n;i++){ const an=i/n*6.283+c.s*2, rr=R*.38; ctx.beginPath(); ctx.arc(Math.cos(an)*rr,Math.sin(an)*rr,R*.28,0,6.283); ctx.fill(); }
+          if(R>5){ ctx.strokeStyle='#4a2a7c'; ctx.lineWidth=R*.08; ctx.beginPath(); for(let i=0;i<n;i++){ const an=i/n*6.283+c.s*2; const x=Math.cos(an)*R*.38, y=Math.sin(an)*R*.38; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke(); } }
+      }
+      ctx.restore();
+    }
+    // белгілер
+    if(labels && fov<=60){
+      const want = spec==='human'||spec==='camel' ? [['rbc','Эритроцит'],['neut','Лейкоцит (нейтрофил)'],['lymph','Лейкоцит (лимфоцит)'],['mono','Лейкоцит (моноцит)'],['eos','Лейкоцит (эозинофил)'],['plt','Тромбоцит']] : [['rbc','Эритроцит (ядролы)'],['neut','Лейкоцит'],['lymph','Лейкоцит (лимфоцит)'],['thr','Тромбоцит (ядролы)']];
+      const L=tctx; L.font=`600 ${Math.max(11,S*0.028)}px Inter,system-ui,sans-serif`; L.textBaseline='middle';
+      for(const [t,name] of want){
+        let best=null, bd=1e9; for(const c of cells){ if(c.t!==t || !vis(c)) continue; const d=Math.hypot(c.x-cx,c.y-cy); if(d<bd && d<fov*0.42){ bd=d; best=c; } }
+        if(!best) continue;
+        const X=tx(best.x), Y=ty(best.y), R=Math.min(best.r*k,S*0.2), w=L.measureText(name).width+14, hh=Math.max(22,S*0.048);
+        const right = X < S*0.55; const lx = right ? Math.min(X+R+S*0.06, S*0.9-w) : Math.max(X-R-S*0.06-w, S*0.1); const ly=Math.max(S*0.14, Math.min(S*0.86, Y-R*0.6-S*0.03));
+        L.strokeStyle='#111'; L.lineWidth=1.6; L.beginPath(); L.moveTo(X+(right?R*.6:-R*.6),Y-R*0.5); L.lineTo(right?lx:lx+w,ly); L.stroke();
+        L.fillStyle='rgba(255,255,255,.95)'; L.beginPath(); L.roundRect ? L.roundRect(lx,ly-hh/2,w,hh,6) : L.rect(lx,ly-hh/2,w,hh); L.fill(); L.fillStyle='#111'; L.fillText(name,lx+7,ly);
+      }
+    }
+    // фокус
+    const blur=Math.abs(focus-focusT)*0.09*(1+180/fov*0.15);
+    can.style.filter = blur>0.15 ? `blur(${blur.toFixed(2)}px)` : 'none';
+    host.querySelector('#mMag').textContent = `×${Math.round(EYE*1800/fov)}`;
+    host.querySelectorAll('[data-ob]').forEach(b=>b.setAttribute('aria-pressed', Math.abs(1800/+b.dataset.ob - fov) < 1800/+b.dataset.ob*0.2));
+  }
+  const req=()=>{ if(!dirty){ dirty=true; requestAnimationFrame(draw); } };
+  const clampC=()=>{ const h=fov/2; cx=Math.min(WORLD-h,Math.max(h,cx)); cy=Math.min(WORLD-h,Math.max(h,cy)); };
+  function setFov(f, refocus){ fov=Math.min(FMAX,Math.max(FMIN,f)); zr.value=fovToR(fov); clampC(); if(refocus){ focusT = Math.max(5,Math.min(95, focus + (Math.random()<.5?-1:1)*(12+Math.random()*16))); } req(); }
+  function setSpec(s){ spec=s; cells=gen(s); host.querySelectorAll('[data-sp]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.sp===s)); host.querySelector('#mNote').textContent=SPEC[s].note; cx=cy=WORLD/2; req(); }
+  host.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>setSpec(b.dataset.sp));
+  host.querySelectorAll('[data-ob]').forEach(b=>b.onclick=()=>setFov(1800/+b.dataset.ob, true));
+  host.querySelector('#mIn').onclick=()=>setFov(fov/1.4); host.querySelector('#mOut').onclick=()=>setFov(fov*1.4);
+  zr.oninput=()=>setFov(rToFov(+zr.value));
+  fr.oninput=()=>{ focus=+fr.value; req(); };
+  host.querySelector('#mLab').onchange=e=>{ labels=e.target.checked; req(); };
+  // сүйреу, дөңгелек, екі саусақ
+  const P=new Map(); let pd=null;
+  view.addEventListener('pointerdown',e=>{ view.setPointerCapture(e.pointerId); P.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(P.size===2){ const [a,b]=[...P.values()]; pd={d:Math.hypot(a.x-b.x,a.y-b.y), f:fov}; } });
+  view.addEventListener('pointermove',e=>{ const p=P.get(e.pointerId); if(!p) return; const S=view.clientWidth;
+    if(P.size===1){ cx -= (e.clientX-p.x)*fov/S; cy -= (e.clientY-p.y)*fov/S; clampC(); req(); }
+    p.x=e.clientX; p.y=e.clientY;
+    if(P.size===2 && pd){ const [a,b]=[...P.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); setFov(pd.f*pd.d/Math.max(d,1)); } });
+  const up=e=>{ P.delete(e.pointerId); if(P.size<2) pd=null; };
+  view.addEventListener('pointerup',up); view.addEventListener('pointercancel',up);
+  view.addEventListener('wheel',e=>{ e.preventDefault(); setFov(fov*Math.pow(1.0015,e.deltaY)); },{passive:false});
+  new ResizeObserver(req).observe(view);
+  setSpec('human'); setFov(180, false); focusT=focus;
+}
+
 /* калькуляторлар */
 const num = v => { const x = parseFloat(String(v).replace(',','.')); return isFinite(x) ? x : null; };
 const fld = (k,label,val,attrs='') => `<label class="fld">${label}<input data-k="${k}" inputmode="decimal" value="${val??''}" ${attrs}></label>`;
