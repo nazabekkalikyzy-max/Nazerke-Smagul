@@ -83,6 +83,7 @@ a{color:inherit}
 .landing .stagewrap{position:relative;min-height:0}
 .landing .halo{position:absolute;inset:8% 4% 8% 0;border-radius:50%;background:radial-gradient(closest-side,var(--accent-tint),transparent);opacity:.9}
 .heroHost{position:absolute;inset:0}
+.heroHost canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .landing .tagline{position:absolute;bottom:clamp(18px,5vh,44px);left:0;right:0;text-align:center;font-family:var(--serif);font-style:italic;color:var(--muted);font-size:15px;pointer-events:none}
 .landing .light{position:absolute;top:18px;right:20px;z-index:3}
 
@@ -541,6 +542,18 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
 .qres .big{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .q3d h5{display:flex;align-items:center;gap:8px}.q3d h5 .ic{color:var(--accent)}
 .eyelink{margin-left:10px;display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;background:var(--grad);color:#fff;font-size:11px;letter-spacing:.02em;text-transform:none;vertical-align:middle}.eyelink .ic{width:14px;height:14px}
+
+.bsbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.bscard{position:relative;background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px 16px 14px;box-shadow:0 12px 34px -24px rgba(var(--shadow),.5)}
+.bscard svg{display:block;width:11cm;max-width:100%;height:auto;max-height:70vh;margin:0 auto}
+.bscard svg rect,.bscard svg circle{fill:#000}.bscard svg circle{fill:none}
+.bshint{margin:8px 0 0;text-align:center;font-size:14px;color:#333}
+.bsclose{display:none;position:absolute;top:12px;right:14px;width:40px;height:40px;border-radius:50%;background:#f1f1f1;color:#111;font-size:18px}
+.bscard.full{position:fixed;inset:0;z-index:2000;border-radius:0;border:0;display:flex;flex-direction:column;justify-content:center;padding:16px}
+.bscard.full .bsclose{display:block}
+.bscard.full svg{max-height:80vh;width:11cm}
+body.bsopen{overflow:hidden}
+:root[data-light="night"] .bscard{background:#fff}
 </style>
 </head>
 <body>
@@ -1346,7 +1359,7 @@ function makeViewer(){
     // fit
     const box = new THREE.Box3().setFromObject(rig.content);
     const c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
-    rig.content.position.copy(c).multiplyScalar(-1);
+    rig.content.position.copy(c).multiplyScalar(-1); rig.cBase = rig.content.position.clone(); rig.halfMax = Math.max(sz.x,sz.y,sz.z)*0.5;
     rig.holder.scale.setScalar(1/(Math.max(sz.x,sz.y,sz.z)*0.5));
     rig.zFront = box.max.z + 1; rig.cutZ = rig.zFront; rig.cutCur = rig.zFront;
     // anchors: extreme vertex of each part in a preferred direction
@@ -1480,7 +1493,7 @@ float vnoise(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);
     if(!rig || !rig.ready) return;
     const sel = rig.okey===active ? st.sel : null;
     for(const p of Object.values(rig.parts)){
-      const isSel = p.key===sel, ghost = st.isolate && sel && !isSel;
+      const isSel = p.key===sel, qHide = !!(st.quiz && sel && !isSel), ghost = (st.isolate && sel && !isSel) || qHide;
       const pc = new THREE.Color(p.info.col);
       for(const e of p.mats){
         const m=e.m;
@@ -1498,15 +1511,15 @@ float vnoise(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);
         const al = m.userData && m.userData.alpha!=null ? m.userData.alpha : 1;
         const tr = ghost || al<1;
         if(m.transparent!==tr){ m.transparent=tr; m.depthWrite=!tr; m.needsUpdate=true; }
-        m.opacity = ghost ? 0.1 : al;
+        m.opacity = qHide ? (st.quiz.reveal ? 0.12 : 0) : ghost ? 0.1 : al;
       }
-      p.meshes.forEach(ms=>ms.renderOrder = ghost ? 2 : (ms.material.userData&&ms.material.userData.alpha<1 ? 1 : 0));
+      p.meshes.forEach(ms=>{ ms.renderOrder = ghost ? 2 : (ms.material.userData&&ms.material.userData.alpha<1 ? 1 : 0); ms.visible = !(qHide && !st.quiz.reveal); });
     }
   }
   function setEmissive(rig, t){
     if(!rig || !rig.ready) return;
     for(const p of Object.values(rig.parts)){
-      const k = p.key===st.sel ? (st.quiz ? 0.55+0.25*Math.sin(t*4.2) : 0.16+0.09*Math.sin(t*4.2)) : (p.key===st.hover && !st.quiz) ? 0.1 : 0;
+      const k = p.key===st.sel ? (st.quiz ? 0.16+0.12*Math.sin(t*4.2) : 0.16+0.09*Math.sin(t*4.2)) : (p.key===st.hover && !st.quiz) ? 0.1 : 0;
       for(const e of p.mats){
         if(e.m.emissive) { e.m.emissive.copy(st.quiz && p.key===st.sel ? QACC : ACC).multiplyScalar(k); }
         else if(e.role==='back' && e.kind!=='cavity'){ // basic caps: brighten when selected
@@ -1539,6 +1552,7 @@ float vnoise(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);
     const prev = active; active = key;
     const rig = R();
     if(prev!==key){
+      Object.values(rigs).forEach(g=>{ if(g.cBase){ g.cTarget=g.cBase.clone(); } });
       st.quiz=null; st.sel=null; st.hover=null; st.isolate=false; st.open=false; st.zoomT=1; st.panTX=st.panTY=0; st.vx=st.vy=0; st.turn=0;
       for(const k of [key, key+':in']) if(rigs[k] && rigs[k].ready){ rigs[k].spin.quaternion.copy(rigs[k].qHome); rigs[k].cutCur=rigs[k].zFront; }
       if(ORGANS[key].real && !ORGANS[key].noCut) setTimeout(()=>{ if(active===key && mode==='full') getRig(key+':in'); }, 2500);
@@ -1756,7 +1770,7 @@ float vnoise(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);
     for(const h of oray.intersectObjects(r.pickables,false)){
       lp2.copy(h.point); r.content.worldToLocal(lp2);
       if(isClipped(r,lp2)) continue;
-      if(h.object.userData.role!=='front') continue;
+      if(h.object.userData.role!=='front' || !h.object.visible) continue;
       if(h.object.userData.key!==a.part && h.object.material.userData && h.object.material.userData.alpha<1) continue;
       blocked = h.distance < dist - 0.06; break;
     }
@@ -1859,6 +1873,7 @@ float vnoise(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);
       const hb = (g.O.beat && !reduce && !st.open) ? heartbeat(tAcc) : 1;
       const s = (want ? outBack(Math.min(1,g.vis*1.02))*(0.4+0.6*g.vis) : g.vis) * hb;
       g.pivot.scale.setScalar(Math.max(s,1e-4));
+      if(g.cTarget){ g.content.position.lerp(g.cTarget, damp(5,dt)); }
       g.pivot.position.set(0, reduce?0:Math.sin(tAcc*1.3)*0.02, 0);
       g.pivot.rotation.set(0, idle ? Math.sin(tAcc*0.5)*0.12 : g.pivot.rotation.y*0.95, 0);
       // clip planes in world space
@@ -1895,7 +1910,7 @@ float vnoise(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);
   function setNight(n){ lightMode = n?'night':'day'; }
 
 
-  return { mount, unmount, show, setNight, select, setOpen, st, rigs, get active(){return active;}, whenReady(){ const r=R(); return (r&&r.loading)||Promise.resolve(); }, refresh(){ Object.values(rigs).forEach(applyMaterials); buildLabels(); }, toggleIsolate(){ st.isolate=!st.isolate; Object.values(rigs).forEach(applyMaterials); ui.renderInfo(); ui.sync(); }, faceAnchor };
+  return { mount, unmount, show, setNight, select, setOpen, st, rigs, get active(){return active;}, focusPart(key){ const r=R(); if(!r||!r.ready||!r.cBase) return; if(!key){ r.cTarget=r.cBase.clone(); st.zoomT=1; st.panTX=st.panTY=0; return; } const p=r.parts[key]; if(!p) return; const b=new THREE.Box3(); p.meshes.forEach(ms=>{ ms.geometry.computeBoundingBox(); b.union(ms.geometry.boundingBox); }); const c=b.getCenter(new THREE.Vector3()), rad=b.getSize(new THREE.Vector3()).length()*0.5; r.cTarget=c.multiplyScalar(-1); st.zoomT=clamp(r.halfMax/Math.max(rad,1e-3)*0.75,1,3.2); st.panTX=st.panTY=0; prevZ=st.zoomT; }, whenReady(){ const r=R(); return (r&&r.loading)||Promise.resolve(); }, refresh(){ Object.values(rigs).forEach(applyMaterials); buildLabels(); }, toggleIsolate(){ st.isolate=!st.isolate; Object.values(rigs).forEach(applyMaterials); ui.renderInfo(); ui.sync(); }, faceAnchor };
 }
 
 /* =====================================================================
@@ -1978,9 +1993,9 @@ const quiz = {
     const pool=(O.real?O.real.parts:Object.keys(O.parts).filter(k=>O.parts[k].layer!=='in')).filter(k=>!rig||!rig.parts||rig.parts[k]);
     const qs=shuffle(pool).slice(0,Math.min(10,pool.length)).map(k=>({ k, opts:shuffle([k,...shuffle(pool.filter(x=>x!==k)).slice(0,3)]) }));
     st.quiz={ organ:key, qs, i:0, score:0, wrong:[], answer:null, reveal:false };
-    viewer.select(qs[0].k); viewer.refresh(); ui.sync();
+    viewer.select(qs[0].k); viewer.focusPart(qs[0].k); viewer.refresh(); ui.sync();
   },
-  stop(){ const st=viewer.st; st.quiz=null; viewer.select(null); viewer.refresh(); ui.sync(); },
+  stop(){ const st=viewer.st; st.quiz=null; viewer.focusPart(null); viewer.select(null); viewer.refresh(); ui.sync(); },
   answer(k){
     const st=viewer.st, q=st.quiz; if(!q || q.answer) return;
     const cur=q.qs[q.i]; q.answer=k; q.reveal=true;
@@ -1990,7 +2005,7 @@ const quiz = {
   next(){
     const st=viewer.st, q=st.quiz; if(!q) return;
     q.i++; q.answer=null; q.reveal=false;
-    if(q.i<q.qs.length){ viewer.select(q.qs[q.i].k); } else { st.sel=null; ui.renderInfo(); }
+    if(q.i<q.qs.length){ viewer.select(q.qs[q.i].k); viewer.focusPart(q.qs[q.i].k); } else { st.sel=null; viewer.focusPart(null); ui.renderInfo(); }
     viewer.refresh();
   },
   render(d){
@@ -2573,8 +2588,8 @@ const LABS = [
       <p>Бір көзбен карточкадағы бір белгіге қарап тұрып, карточканы біртіндеп жақындатқанда, белгілі бір қашықтықта екінші белгі «жоғалып кетеді» — оның бейнесі соқыр дақтың үстіне түседі. Бұл қашықтық әдетте <b>15–25 см</b> болады. Белгілердің ара қашықтығы мен көзге дейінгі қашықтықты білсек, соқыр дақтың бұрыштық орнын есептей аламыз:</p>
       <div class="formula">α = arctg (a / d)</div>
       <p class="small">a — карточкадағы екі белгінің ара қашықтығы, d — бейне жоғалған кездегі көзден карточкаға дейінгі қашықтық. Қалыпты жағдайда α ≈ 12–18°.</p>`,
-    tools:['Ақ карточка: сол жағында крест (+), одан 6 см оңға қарай қара дөңгелек салынған','Сызғыш немесе сантиметрлік таспа'],
-    steps:['Сол көзіңізді алақанмен жабыңыз. Карточканы қолды созған қашықтықта ұстап, оң көзбен крестке қараңыз. Дөңгелек шеткі көрумен көрініп тұрады.','Крестен көзді алмай, карточканы баяу жақындатыңыз.','Дөңгелек жоғалып кеткен сәтте тоқтаңыз. Көзден карточкаға дейінгі қашықтықты өлшеңіз.','Карточканы одан әрі жақындатып, дөңгелектің қайта пайда болатынына көз жеткізіңіз.','Карточканы аударып (дөңгелек солда), сол көзбен тәжірибені қайталаңыз.','Нәтижелерді енгізіңіз.'],
+    tools:['Сайттағы тест картасы (төменде) — ноутбук немесе телефон экраны; немесе ақ қағазға салынған дәл осындай карта','Сызғыш немесе сантиметрлік таспа'], card:'blind',
+    steps:['Төмендегі тест картасын ашыңыз. Телефонда экранды көлденең бұрып, «Толық экран» батырмасын басыңыз. Экран жарықтығын арттырыңыз.','Сызғышпен экрандағы екі белгінің (кішкентай крест пен дөңгелектің орталықтары) арасын өлшеп, «Белгілер ара қашықтығы» жолына жазыңыз.','Оң көзді тексеру: «Оң көз» режимін таңдаңыз. Сол көзіңізді алақанмен жабыңыз да, оң көзбен СОЛ жақтағы кішкентай крестке тура қараңыз. Дөңгелек шеткі көрумен көрініп тұрады.','Крестен көзді алмай, басыңызды экранға баяу жақындатыңыз (немесе телефонды баяу жақындатыңыз).','Дөңгелек көзден ғайып болған сәтте тоқтаңыз — оның бейнесі соқыр дақтың үстіне түсті. Көзден экранға дейінгі қашықтықты сызғышпен өлшеңіз.','Тағы жақындасаңыз, дөңгелек қайта пайда болатынына көз жеткізіңіз.','Сол көзді тексеру: «Сол көз» режимін таңдаңыз (белгілер орын ауыстырады). Оң көзді жауып, сол көзбен ОҢ жақтағы крестке қарап, тәжірибені қайталаңыз.','Екі қашықтықты төмендегі кестеге енгізіңіз — сайт соқыр дақтың бұрыштық орнын есептейді.'],
     calc:'blind',
     questions:['Неліктен соқыр дақта бейне қабылданбайды?','Неліктен күнделікті өмірде біз соқыр дақты байқамаймыз?','Оң және сол көздің нәтижелері неліктен шамалас болады?','Соқыр дақ пен сары дақтың айырмашылығы неде?'] },
   { n:4, group:'Есту мүшесі', icon:'i-info', book:'№12', page:257, title:'Есту қабілетін анықтау (сыбырлы сөйлеу)',
@@ -2696,6 +2711,18 @@ function renderLab(n){
     <section class="dsec" id="x-th"><h2><span class="n">02</span>Теориялық түсінік</h2>${l.theory}</section>
     <section class="dsec" id="x-tools"><h2><span class="n">03</span>Құрал-жабдықтар</h2><ul>${l.tools.map(a=>`<li>${a}</li>`).join('')}</ul></section>
     <section class="dsec" id="x-steps"><h2><span class="n">04</span>Жұмыс барысы</h2><ol class="steps">${l.steps.map(a=>`<li><span>${a}</span></li>`).join('')}</ol></section>
+    ${l.card==='blind'?`<section class="dsec" id="x-card"><h2><span class="n">★</span>Тест картасы</h2>
+      <div class="bsbar"><div class="seg2"><button data-bseye="R" aria-pressed="true">Оң көз</button><button data-bseye="L" aria-pressed="false">Сол көз</button></div>
+        <button class="sbtn primary" data-bsfull><svg class="ic"><use href="#i-expand"/></svg>Толық экран</button></div>
+      <div class="bscard" id="bsCard"><button class="bsclose" data-bsclose aria-label="Жабу">✕</button>
+        <svg viewBox="0 0 1000 360" preserveAspectRatio="xMidYMid meet" aria-label="Соқыр дақты анықтауға арналған карта">
+          <g id="bsFix"><rect x="122" y="168" width="56" height="24"/><rect x="138" y="152" width="24" height="56"/></g>
+          <g id="bsTgt"><circle cx="850" cy="180" r="95" fill="none" stroke="#000" stroke-width="34"/><rect x="822" y="168" width="56" height="24"/><rect x="838" y="152" width="24" height="56"/></g>
+        </svg>
+        <p class="bshint" id="bsHint"></p>
+      </div>
+      <p class="small">Белгілердің ара қашықтығы экранның өлшеміне байланысты, сондықтан оны сызғышпен өлшеңіз. Телефонда экранды көлденең ұстаңыз.</p>
+    </section>`:''}
     <section class="dsec" id="x-work"><h2><span class="n">05</span>Нәтижелер және қорытынды</h2><div class="work" id="labWork"></div></section>
     <section class="dsec" id="x-q"><h2><span class="n">06</span>Бақылау сұрақтары</h2><ol>${l.questions.map(a=>`<li>${a}</li>`).join('')}</ol></section>
     <nav class="pager">
@@ -2703,9 +2730,26 @@ function renderLab(n){
       ${next?`<button data-href="#lab-${next.n}"><small>Келесі →</small>№${next.n}. ${esc(next.title)}</button>`:''}
     </nav>`;
   host.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.jump).scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'}));
+  if(l.card==='blind') blindCard(host);
   CALC[l.calc](l, $('#labWork'));
 }
 
+function blindCard(host){
+  const card=host.querySelector('#bsCard'), fix=card.querySelector('#bsFix'), tgt=card.querySelector('#bsTgt'), hint=card.querySelector('#bsHint');
+  const set=eye=>{
+    host.querySelectorAll('[data-bseye]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.bseye===eye));
+    // оң көз: крест сол жақта; сол көз: крест оң жақта
+    fix.setAttribute('transform', eye==='R' ? '' : 'translate(700,0)');
+    tgt.setAttribute('transform', eye==='R' ? '' : 'translate(-700,0)');
+    hint.innerHTML = eye==='R' ? '<b>Сол көзді</b> жабыңыз → <b>оң көзбен</b> кішкентай крестке қарап, экранға баяу жақындаңыз' : '<b>Оң көзді</b> жабыңыз → <b>сол көзбен</b> кішкентай крестке қарап, экранға баяу жақындаңыз';
+  };
+  host.querySelectorAll('[data-bseye]').forEach(b=>b.onclick=()=>set(b.dataset.bseye));
+  const close=()=>{ card.classList.remove('full'); document.body.classList.remove('bsopen'); if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); };
+  host.querySelector('[data-bsfull]').onclick=()=>{ card.classList.add('full'); document.body.classList.add('bsopen'); if(card.requestFullscreen) card.requestFullscreen().catch(()=>{}); try{ screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} };
+  card.querySelector('[data-bsclose]').onclick=close;
+  document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement && card.classList.contains('full')) { card.classList.remove('full'); document.body.classList.remove('bsopen'); } });
+  set('R');
+}
 /* калькуляторлар */
 const num = v => { const x = parseFloat(String(v).replace(',','.')); return isFinite(x) ? x : null; };
 const fld = (k,label,val,attrs='') => `<label class="fld">${label}<input data-k="${k}" inputmode="decimal" value="${val??''}" ${attrs}></label>`;
