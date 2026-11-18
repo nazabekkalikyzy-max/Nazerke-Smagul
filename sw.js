@@ -1,5 +1,5 @@
 // Анатомия атласы — офлайн жұмыс істеуге арналған service worker
-const VERSION = 'atlas-v3';
+const VERSION = 'atlas-v4';
 const CORE = ['./', './index.html', './vendor.js', './topics.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 const MODELS = ['./heart_real.js', './brain_real.js', './teeth_real.js', './eye_real.js', './heart.js', './brain.js'];
 self.addEventListener('install', e => {
