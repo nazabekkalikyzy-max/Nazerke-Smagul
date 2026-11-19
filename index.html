@@ -188,7 +188,8 @@ details.norm summary{cursor:pointer;font-weight:600;font-size:13.5px}
 .vcard iframe,.vthumb{width:100%;aspect-ratio:16/9;border:0;border-radius:14px;display:block;background:#000 center/cover no-repeat}
 .vthumb{position:relative;cursor:pointer}
 .vthumb .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:62px;height:62px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:22px;padding-left:4px}
-.vcard figcaption{font-size:14px}
+.vcard figcaption{font-size:14px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.ytlink{font-size:12.5px;color:var(--accent);text-decoration:none;white-space:nowrap}
 @media (max-width:860px){ .vgrid{grid-template-columns:1fr} }
 /* ---------- study: books, tasks, topics, exam, labs ---------- */
 .wide{max-width:1120px}
@@ -947,7 +948,7 @@ addEventListener('unhandledrejection', e=>showErr(String(e.reason&&e.reason.mess
    ===================================================================== */
 const SECTIONS = [
   { id:'books', icon:'i-book', title:'Кітаптар', text:'Оқулық: Биология, 8-сынып (Атамұра, 2018). Библиографиясы және адам анатомиясы тарауларының мазмұны.', ready:true, badge:'Оқулық' },
-  { id:'videos', icon:'i-play', title:'Видеосабақтар', text:'Оқулық тақырыптары бойынша бейнесабақтар. Әр бейне өз тақырыбының бетінде де көрсетіледі.' },
+  { id:'videos', icon:'i-play', title:'Видеосабақтар', text:'Оқулық тақырыптары бойынша бейнесабақтар. Әр бейне өз тақырыбының бетінде де көрсетіледі.', ready:true, badge:'1 бейне' },
   { id:'models', icon:'i-cube', title:'3D модельдер', text:'Мүшелерді айналдырып, ішін ашып, әр бөлігін қазақша және латынша атауымен зерттеңіз.', ready:true },
   { id:'labs', icon:'i-flask', title:'Зертханалық жұмыстар', text:'Көру, есту, тері, қан айналым, тыныс алу және тірек-қимыл жүйесіне арналған жұмыстар: нәтижені енгізсеңіз, сайт қорытынды шығарады.', ready:true, badge:'11 жұмыс' },
   { id:'tasks', icon:'i-check', title:'Тапсырмалар', text:'34 тақырып бойынша теориялық материал, негізгі терминдер және сұрақ-жауаптарды жаттау.', ready:true, badge:'34 тақырып' },
@@ -2543,9 +2544,11 @@ async function renderTopic(id){
 
 /* ---------- Видеосабақтар ---------- */
 /* Бейне қосу: { topic:12, title:'...', yt:'YouTube сілтемесі немесе ID' } */
-const VIDEOS = [];
+const VIDEOS = [
+  { topic:23, title:'Жүректің ішкі құрылысы мен жұмысы (анимация)', yt:'3V8YMnIcpkI' },
+];
 const ytId = u => { const m = String(u).match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/); return m ? m[1] : (/^[\w-]{11}$/.test(u) ? u : null); };
-const videoCard = v => { const id = ytId(v.yt); return `<figure class="vcard"><button class="vthumb" data-yt="${id}" aria-label="Ойнату: ${esc(v.title)}" style="background-image:url(https://i.ytimg.com/vi/${id}/hqdefault.jpg)"><span class="play">▶</span></button><figcaption>${esc(v.title)}</figcaption></figure>`; };
+const videoCard = v => { const id = ytId(v.yt); return `<figure class="vcard"><button class="vthumb" data-yt="${id}" aria-label="Ойнату: ${esc(v.title)}" style="background-image:url(https://i.ytimg.com/vi/${id}/hqdefault.jpg)"><span class="play">▶</span></button><figcaption><span>${esc(v.title)}</span><a class="ytlink" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">YouTube-та ашу ↗</a></figcaption></figure>`; };
 function wireVideos(root){
   root.querySelectorAll('[data-yt]').forEach(b=>b.onclick=()=>{
     const f=document.createElement('iframe'); f.src=`https://www.youtube-nocookie.com/embed/${b.dataset.yt}?autoplay=1&rel=0`; f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen'; f.allowFullscreen=true; f.title=b.getAttribute('aria-label');
@@ -2559,6 +2562,7 @@ async function renderVideos(){
     ${backBtn('#menu','Бөлімдер')}
     <h2>Видеосабақтар</h2>
     <p class="lead">Оқулық тақырыптары бойынша бейнесабақтар. Әр бейне сәйкес тақырып бетінде де көрсетіледі.</p>
+    ${VIDEOS.some(v=>v.topic==null) ? `<h3 class="h3s"><svg class="ic" style="width:22px;height:22px;color:var(--accent)"><use href="#i-play"/></svg>Жалпы<small>${VIDEOS.filter(v=>v.topic==null).length} бейне</small></h3><div class="vgrid">${VIDEOS.filter(v=>v.topic==null).map(videoCard).join('')}</div>` : ''}
     ${VIDEOS.length ? '' : `<div class="soon"><div class="row"><span class="cic"><svg class="ic"><use href="#i-play"/></svg></span><div><p class="eyebrow">Бөлім толтырылуда</p><h3>Видеосабақтар жақында қосылады</h3></div></div><p style="margin:0;color:var(--muted)">Бейнесабақтар тақырыптар бойынша төмендегі тәртіппен орналасады.</p></div>`}
     ${groupBy(T).map(([sec,list])=>{ const vs = VIDEOS.filter(v=>list.some(t=>t.id===v.topic));
       return `<h3 class="h3s"><svg class="ic" style="width:22px;height:22px;color:var(--accent)"><use href="#${secIcon[sec]||'i-book'}"/></svg>${sec}<small>${vs.length} бейне</small></h3>
